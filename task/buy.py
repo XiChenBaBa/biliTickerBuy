@@ -12,6 +12,7 @@ from loguru import logger
 from playsound3 import playsound
 from requests import HTTPError, RequestException
 
+import util.CtokenUtil
 from util import ERRNO_DICT, NtfyUtil, PushPlusUtil, ServerChanUtil, time_service
 from util import bili_ticket_gt_python
 from util.BiliRequest import BiliRequest
@@ -29,18 +30,18 @@ def get_qrcode_url(_request, order_id) -> str:
 
 
 def buy_stream(
-    tickets_info_str,
-    time_start,
-    interval,
-    mode,
-    total_attempts,
-    audio_path,
-    pushplusToken,
-    serverchanKey,
-    https_proxys,
-    ntfy_url=None,
-    ntfy_username=None,
-    ntfy_password=None,
+        tickets_info_str,
+        time_start,
+        interval,
+        mode,
+        total_attempts,
+        audio_path,
+        pushplusToken,
+        serverchanKey,
+        https_proxys,
+        ntfy_url=None,
+        ntfy_username=None,
+        ntfy_password=None,
 ):
     if bili_ticket_gt_python is None:
         yield "当前设备不支持本地过验证码，无法使用"
@@ -49,6 +50,7 @@ def buy_stream(
     isRunning = True
     left_time = total_attempts
     tickets_info = json.loads(tickets_info_str)
+    is_hot = tickets_info["hotProject"]
     cookies = tickets_info["cookies"]
     phone = tickets_info.get("phone", None)
     tickets_info.pop("cookies", None)
@@ -73,15 +75,15 @@ def buy_stream(
         yield f"时间偏差已被设置为: {timeoffset}s"
         try:
             time_difference = (
-                datetime.strptime(time_start, "%Y-%m-%dT%H:%M:%S").timestamp()
-                - time.time()
-                + timeoffset
+                    datetime.strptime(time_start, "%Y-%m-%dT%H:%M:%S").timestamp()
+                    - time.time()
+                    + timeoffset
             )
         except ValueError:
             time_difference = (
-                datetime.strptime(time_start, "%Y-%m-%dT%H:%M").timestamp()
-                - time.time()
-                + timeoffset
+                    datetime.strptime(time_start, "%Y-%m-%dT%H:%M").timestamp()
+                    - time.time()
+                    + timeoffset
             )
         start_time = time.perf_counter()
         end_time = start_time + time_difference
@@ -150,9 +152,15 @@ def buy_stream(
                     isJson=True,
                 ).json()
                 yield f"prepare: {request_result}"
+            prepare_time = int(time.time() * 1000)
 
             tickets_info["again"] = 1
             tickets_info["token"] = request_result["data"]["token"]
+
+            if is_hot:
+                yield "热门项目，使用 ptoken"
+                tickets_info["ptoken"] = request_result["data"]["ptoken"]
+                time.sleep(1)
             yield "2）创建订单"
             tickets_info["timestamp"] = int(time.time()) * 100
             payload = tickets_info
@@ -162,6 +170,9 @@ def buy_stream(
                     yield "抢票结束"
                     break
                 try:
+                    if is_hot:
+                        yield "热门项目，生成 ctoken"
+                        payload["ctoken"] = util.CtokenUtil.EncodeCtoken(prepare_time)
                     ret = _request.post(
                         url=f"https://show.bilibili.com/api/ticket/order/createV2?project_id={tickets_info['project_id']}",
                         data=payload,
@@ -169,6 +180,12 @@ def buy_stream(
                     ).json()
                     err = int(ret.get("errno", ret.get("code")))
                     yield f"[尝试 {attempt}/60]  [{err}]({ERRNO_DICT.get(err, '未知错误码')}) | {ret}"
+
+                    if err in [900001, 900003]:
+                        yield "被盾盾盾盾盾盾惹，休息 1 秒再试"
+
+                    if err == 900002:
+                        yield "被盾盾盾盾盾盾惹"
 
                     if err == 100034:
                         yield f"更新票价为：{ret['data']['pay_money'] / 100}"
@@ -251,20 +268,6 @@ def buy_stream(
 
 
 def buy(
-    tickets_info_str,
-    time_start,
-    interval,
-    mode,
-    total_attempts,
-    audio_path,
-    pushplusToken,
-    serverchanKey,
-    https_proxys,
-    ntfy_url=None,
-    ntfy_username=None,
-    ntfy_password=None,
-):
-    for msg in buy_stream(
         tickets_info_str,
         time_start,
         interval,
@@ -274,29 +277,43 @@ def buy(
         pushplusToken,
         serverchanKey,
         https_proxys,
-        ntfy_url,
-        ntfy_username,
-        ntfy_password,
+        ntfy_url=None,
+        ntfy_username=None,
+        ntfy_password=None,
+):
+    for msg in buy_stream(
+            tickets_info_str,
+            time_start,
+            interval,
+            mode,
+            total_attempts,
+            audio_path,
+            pushplusToken,
+            serverchanKey,
+            https_proxys,
+            ntfy_url,
+            ntfy_username,
+            ntfy_password,
     ):
         logger.info(msg)
 
 
 def buy_new_terminal(
-    endpoint_url,
-    filename,
-    tickets_info_str,
-    time_start,
-    interval,
-    mode,
-    total_attempts,
-    audio_path,
-    pushplusToken,
-    serverchanKey,
-    https_proxys,
-    ntfy_url=None,
-    ntfy_username=None,
-    ntfy_password=None,
-    terminal_ui="网页",
+        endpoint_url,
+        filename,
+        tickets_info_str,
+        time_start,
+        interval,
+        mode,
+        total_attempts,
+        audio_path,
+        pushplusToken,
+        serverchanKey,
+        https_proxys,
+        ntfy_url=None,
+        ntfy_username=None,
+        ntfy_password=None,
+        terminal_ui="网页",
 ) -> subprocess.Popen:
     command = [sys.executable]
     if not getattr(sys, "frozen", False):

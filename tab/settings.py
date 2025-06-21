@@ -2,6 +2,7 @@ import json
 import os
 import re
 from datetime import datetime
+from telnetlib import theNULL
 from typing import Any, Dict, List
 from urllib.parse import urlparse, parse_qs
 
@@ -20,6 +21,7 @@ project_name: str = ""
 ticket_str_list: List[str] = []
 sales_dates = []
 project_id = 0
+hotProject = False
 
 sales_flag_number_map = {
     1: "不可售",
@@ -51,6 +53,7 @@ def on_submit_ticket_id(num):
     global ticket_str_list
     global sales_dates
     global project_id
+    global hotProject
     try:
         buyer_value = []
         addr_value = []
@@ -86,6 +89,9 @@ def on_submit_ticket_id(num):
         project_end_time = datetime.fromtimestamp(data["end_time"]).strftime(
             "%Y-%m-%d %H:%M:%S"
         )
+
+        if data["hotProject"]:
+            hotProject = True
 
         venue_info = data["venue_info"]
         venue_name = venue_info["name"]
@@ -161,7 +167,7 @@ def on_submit_ticket_id(num):
             gr.update(visible=True),
             gr.update(
                 value=f"{extracted_id_message}\n获取票信息成功:\n展会名称：{project_name}\n"
-                f"开展时间：{project_start_time} - {project_end_time}\n场馆地址：{venue_name} {venue_address}",
+                      f"开展时间：{project_start_time} - {project_end_time}\n场馆地址：{venue_name} {venue_address}",
                 visible=True,
             ),
             gr.update(visible=True, value=sales_dates[0])
@@ -181,11 +187,11 @@ def extract_id_from_url(url):
 
 
 def on_submit_all(
-    ticket_id,
-    ticket_info: int,
-    people_indices,
-    people_buyer_index,
-    address_index,
+        ticket_id,
+        ticket_info: int,
+        people_indices,
+        people_buyer_index,
+        address_index,
 ):
     try:
         if ticket_id is None:
@@ -219,6 +225,7 @@ def on_submit_all(
             "sku_id": ticket_cur["ticket"]["id"],
             "order_type": 1,
             "pay_money": ticket_cur["ticket"]["price"] * len(people_indices),
+            "hotProject": hotProject,
             "buyer_info": people_cur,
             "buyer": people_buyer_cur["name"],
             "tel": people_buyer_cur["tel"],
@@ -227,9 +234,9 @@ def on_submit_all(
                 "tel": address_cur["phone"],
                 "addr_id": address_cur["id"],
                 "addr": address_cur["prov"]
-                + address_cur["city"]
-                + address_cur["area"]
-                + address_cur["addr"],
+                        + address_cur["city"]
+                        + address_cur["area"]
+                        + address_cur["addr"],
             },
             "cookies": util.main_request.cookieManager.get_cookies(),
             "phone": util.main_request.cookieManager.get_config_value("phone", ""),
