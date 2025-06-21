@@ -183,6 +183,7 @@ def buy_stream(
 
                     if err in [900001, 900003]:
                         yield "被盾盾盾盾盾盾惹，休息 1 秒再试"
+                        time.sleep(1)
 
                     if err == 900002:
                         yield "被盾盾盾盾盾盾惹"
