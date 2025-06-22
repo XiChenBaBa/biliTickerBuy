@@ -25,7 +25,7 @@ class BiliRequest:
             "cookie": "",
             "referer": "https://show.bilibili.com/",
             "priority": "u=1, i",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0",
+            "user-agent": "Dalvik/2.1.0 (Linux; U; Android 15; RMX3997 Build/UKQ1.231108.001)",
         }
         self.request_count = 0  # 记录请求次数
         # 加载 show.bilibili.com CDN IP 列表
