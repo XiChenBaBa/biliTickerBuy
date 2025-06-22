@@ -50,7 +50,7 @@ def buy_stream(
     isRunning = True
     left_time = total_attempts
     tickets_info = json.loads(tickets_info_str)
-    is_hot = tickets_info["hotProject"]
+    is_hot = tickets_info.get("hotProject", False)
     cookies = tickets_info["cookies"]
     phone = tickets_info.get("phone", None)
     tickets_info.pop("cookies", None)
