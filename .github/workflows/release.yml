@@ -14,12 +14,6 @@ jobs:
       matrix:
         config:
           - os:
-              name: ubuntu-22.04
-              filename: linux_amd64
-          - os:
-              name: ubuntu-22.04-arm
-              filename: linux_arm64
-          - os:
               name: windows-latest
               filename: windows_amd64
     steps:
