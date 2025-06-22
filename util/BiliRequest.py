@@ -2,7 +2,9 @@ import json
 import time
 import loguru
 import requests
+import os
 from util.CookieManager import CookieManager
+from urllib.parse import urlparse, urlunparse
 
 
 class BiliRequest:
@@ -25,6 +27,15 @@ class BiliRequest:
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0",
         }
         self.request_count = 0  # 记录请求次数
+        # 加载 show.bilibili.com CDN IP 列表
+        ip_file_path = os.path.join(os.path.dirname(__file__), '..', 'ip.txt')
+        try:
+            with open(ip_file_path, 'r') as f:
+                self.ip_list = [line.strip() for line in f if line.strip()]
+        except Exception as e:
+            loguru.logger.warning(f"加载 ip.txt 失败: {e}")
+            self.ip_list = []
+        self.now_ip_idx = 0  # 当前 IP 索引
 
     def count_and_sleep(self, threshold=60, sleep_time=60):
         """
@@ -45,7 +56,23 @@ class BiliRequest:
             data = json.dumps(data)
         else:
             self.headers["Content-Type"] = "application/x-www-form-urlencoded"
-        response = self.session.get(url, data=data, headers=self.headers)
+        # 使用指定 IP 访问 show.bilibili.com
+        parsed = urlparse(url)
+        headers = self.headers.copy()
+        verify = True
+        request_url = url
+        if parsed.hostname == "show.bilibili.com" and self.ip_list:
+            ip = self.ip_list[self.now_ip_idx]
+            self.now_ip_idx = (self.now_ip_idx + 1) % len(self.ip_list)
+            loguru.logger.info(f"使用IP {ip} 访问 {url}")
+            headers["Host"] = "show.bilibili.com"
+            new_netloc = ip
+            if parsed.port:
+                new_netloc += f":{parsed.port}"
+            new_parsed = parsed._replace(netloc=new_netloc)
+            request_url = urlunparse(new_parsed)
+            verify = False
+        response = self.session.get(request_url, data=data, headers=headers, verify=verify)
         if response.status_code == 412:
             self.count_and_sleep()
             self.switch_proxy()
@@ -79,7 +106,23 @@ class BiliRequest:
             data = json.dumps(data)
         else:
             self.headers["content-type"] = "application/x-www-form-urlencoded"
-        response = self.session.post(url, data=data, headers=self.headers)
+        # 使用指定 IP 访问 show.bilibili.com
+        parsed = urlparse(url)
+        headers = self.headers.copy()
+        verify = True
+        request_url = url
+        if parsed.hostname == "show.bilibili.com" and self.ip_list:
+            ip = self.ip_list[self.now_ip_idx]
+            self.now_ip_idx = (self.now_ip_idx + 1) % len(self.ip_list)
+            loguru.logger.info(f"使用IP {ip} 访问 {url}")
+            headers["Host"] = "show.bilibili.com"
+            new_netloc = ip
+            if parsed.port:
+                new_netloc += f":{parsed.port}"
+            new_parsed = parsed._replace(netloc=new_netloc)
+            request_url = urlunparse(new_parsed)
+            verify = False
+        response = self.session.post(request_url, data=data, headers=headers, verify=verify)
         if response.status_code == 412:
             self.count_and_sleep()
             self.switch_proxy()
