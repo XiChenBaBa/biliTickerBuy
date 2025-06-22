@@ -3,6 +3,7 @@ import time
 import loguru
 import requests
 import os
+import sys
 from util.CookieManager import CookieManager
 from urllib.parse import urlparse, urlunparse
 
@@ -28,10 +29,19 @@ class BiliRequest:
         }
         self.request_count = 0  # 记录请求次数
         # 加载 show.bilibili.com CDN IP 列表
-        ip_file_path = os.path.join(os.path.dirname(__file__), '..', 'ip.txt')
+        # 处理打包后的路径问题
+        if getattr(sys, 'frozen', False):
+            # 打包后的程序
+            base_path = os.path.dirname(sys.executable)
+        else:
+            # 开发环境
+            base_path = os.path.dirname(os.path.dirname(__file__))
+        
+        ip_file_path = os.path.join(base_path, 'ip.txt')
         try:
-            with open(ip_file_path, 'r') as f:
+            with open(ip_file_path, 'r', encoding='utf-8') as f:
                 self.ip_list = [line.strip() for line in f if line.strip()]
+            loguru.logger.info(f"成功加载 {len(self.ip_list)} 个CDN IP")
         except Exception as e:
             loguru.logger.warning(f"加载 ip.txt 失败: {e}")
             self.ip_list = []
